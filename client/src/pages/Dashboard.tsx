@@ -5,7 +5,6 @@ import { formatCurrency } from "@/lib/format";
 import { Card } from "@/components/ui/card";
 import { format, parseISO, startOfMonth, isAfter } from "date-fns";
 import { ArrowDownRight, ArrowUpRight, Wallet, Activity } from "lucide-react";
-import { SmartInsights } from "@/components/SmartInsights";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function Dashboard() {
@@ -101,7 +100,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-3 space-y-8">
           {/* Charts Area */}
           <Card className="p-6 rounded-2xl border-border/50 shadow-md shadow-black/5">
             <h3 className="text-lg font-display font-bold mb-6">Top Expenses by Category</h3>
@@ -154,10 +153,6 @@ export default function Dashboard() {
               )}
             </div>
           </Card>
-        </div>
-
-        <div className="lg:col-span-1 space-y-8">
-          <SmartInsights />
         </div>
       </div>
     </div>

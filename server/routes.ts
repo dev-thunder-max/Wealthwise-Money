@@ -213,44 +213,5 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.insights.generate.path, async (req, res) => {
-    try {
-      const transactions = await storage.getTransactions();
-      const accounts = await storage.getAccounts();
-      const budgets = await storage.getBudgets();
-      
-      const dataSummary = {
-        totalBalance: accounts.reduce((sum, a) => sum + (a.balance / 100), 0),
-        recentTransactions: transactions.slice(0, 10).map(t => ({
-          amount: t.amount / 100,
-          type: t.type,
-          category: t.categoryName,
-          date: t.date
-        })),
-        budgets: budgets.map(b => ({
-          category: b.categoryName,
-          limit: b.limitAmount / 100
-        }))
-      };
-
-      const prompt = `You are a world-class financial advisor. Analyze this user's financial data and provide 3-4 concise, actionable insights or advice. 
-      Focus on spending patterns, budget adherence, and savings opportunities.
-      
-      Data: ${JSON.stringify(dataSummary)}
-      
-      Format the response in clean Markdown. Be encouraging but professional.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ parts: [{ text: prompt }] }],
-      });
-
-      res.json({ insight: response.text || "No insights available." });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Failed to generate insights." });
-    }
-  });
-
   return httpServer;
 }

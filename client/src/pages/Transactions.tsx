@@ -5,7 +5,7 @@ import { formatCurrency } from "@/lib/format";
 import { format, parseISO } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, ArrowDownRight, ArrowUpRight, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, ArrowDownRight, ArrowUpRight, ArrowRightLeft, ReceiptText } from "lucide-react";
 import {
   Dialog,
   DialogContent,

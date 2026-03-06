@@ -93,13 +93,6 @@ export const api = {
       input: insertBudgetSchema,
       responses: { 200: z.custom<typeof budgets.$inferSelect>() }
     }
-  },
-  insights: {
-    generate: {
-      method: "POST" as const,
-      path: "/api/insights" as const,
-      responses: { 200: z.object({ insight: z.string() }) }
-    }
   }
 };
 
