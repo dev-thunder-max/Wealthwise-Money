@@ -1,0 +1,6 @@
+{
+  "name": "WealthWise Money Manager",
+  "description": "A world-class personal finance management app with AI-driven insights, multi-account tracking, and smart budgeting.",
+  "TargetFile": "/metadata.json",
+  "requestFramePermissions": []
+}

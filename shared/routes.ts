@@ -1,0 +1,116 @@
+import { z } from "zod";
+import { insertAccountSchema, insertBudgetSchema, insertCategorySchema, insertTransactionSchema, insertUserSchema, accounts, budgets, categories, transactions, users } from "./schema";
+
+export const errorSchemas = {
+  validation: z.object({ message: z.string(), field: z.string().optional() }),
+  notFound: z.object({ message: z.string() }),
+  internal: z.object({ message: z.string() }),
+};
+
+export const api = {
+  user: {
+    get: {
+      method: "GET" as const,
+      path: "/api/user" as const,
+      responses: {
+        200: z.custom<typeof users.$inferSelect>(),
+        404: errorSchemas.notFound,
+      }
+    },
+    updateSettings: {
+      method: "POST" as const,
+      path: "/api/user/settings" as const,
+      input: z.object({ currencyPreference: z.string() }),
+      responses: {
+        200: z.object({ success: z.boolean() })
+      }
+    }
+  },
+  accounts: {
+    list: {
+      method: "GET" as const,
+      path: "/api/accounts" as const,
+      responses: { 200: z.array(z.custom<typeof accounts.$inferSelect>()) }
+    },
+    create: {
+      method: "POST" as const,
+      path: "/api/accounts" as const,
+      input: insertAccountSchema,
+      responses: { 201: z.custom<typeof accounts.$inferSelect>() }
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/accounts/:id" as const,
+      responses: { 204: z.void() }
+    }
+  },
+  categories: {
+    list: {
+      method: "GET" as const,
+      path: "/api/categories" as const,
+      responses: { 200: z.array(z.custom<typeof categories.$inferSelect>()) }
+    }
+  },
+  transactions: {
+    list: {
+      method: "GET" as const,
+      path: "/api/transactions" as const,
+      responses: { 
+        200: z.array(z.custom<typeof transactions.$inferSelect & {
+          categoryName?: string, categoryIcon?: string, categoryColor?: string, accountName?: string
+        }>())
+      }
+    },
+    create: {
+      method: "POST" as const,
+      path: "/api/transactions" as const,
+      input: insertTransactionSchema,
+      responses: { 201: z.custom<typeof transactions.$inferSelect>() }
+    },
+    update: {
+      method: "PUT" as const,
+      path: "/api/transactions/:id" as const,
+      input: insertTransactionSchema,
+      responses: { 200: z.custom<typeof transactions.$inferSelect>() }
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/transactions/:id" as const,
+      responses: { 204: z.void() }
+    }
+  },
+  budgets: {
+    list: {
+      method: "GET" as const,
+      path: "/api/budgets" as const,
+      responses: {
+        200: z.array(z.custom<typeof budgets.$inferSelect & { categoryName?: string, categoryColor?: string }>())
+      }
+    },
+    upsert: {
+      method: "POST" as const,
+      path: "/api/budgets" as const,
+      input: insertBudgetSchema,
+      responses: { 200: z.custom<typeof budgets.$inferSelect>() }
+    }
+  },
+  insights: {
+    generate: {
+      method: "POST" as const,
+      path: "/api/insights" as const,
+      responses: { 200: z.object({ insight: z.string() }) }
+    }
+  }
+};
+
+export function buildUrl(path: string, params?: Record<string, string | number>): string {
+  let url = path;
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (url.includes(`:${key}`)) {
+        url = url.replace(`:${key}`, String(value));
+      }
+    });
+  }
+  return url;
+}
