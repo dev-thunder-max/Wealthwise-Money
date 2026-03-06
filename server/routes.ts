@@ -213,5 +213,27 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.settings.wipe.path, async (req, res) => {
+    await storage.wipeData();
+    res.json({ success: true });
+  });
+
+  app.get(api.settings.export.path, async (req, res) => {
+    const format = req.query.format as string;
+    const txs = await storage.getTransactions();
+    
+    if (format === 'csv') {
+      const header = "Date,Description,Type,Amount,Category,Account\n";
+      const rows = txs.map(t => `${t.date},${t.description || ''},${t.type},${t.amount/100},${t.categoryName || ''},${t.accountName || ''}`).join("\n");
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=wealthwise_export.csv');
+      return res.send(header + rows);
+    }
+    
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename=wealthwise_export.json');
+    res.json(txs);
+  });
+
   return httpServer;
 }

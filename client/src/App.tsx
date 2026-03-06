@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Accounts from "./pages/Accounts";
 import Budgets from "./pages/Budgets";
+import Settings from "./pages/Settings";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/accounts" component={Accounts} />
       <Route path="/budgets" component={Budgets} />
+      <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>
   );

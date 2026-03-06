@@ -16,19 +16,17 @@ export function useUser() {
   });
 }
 
-export function useUpdateUserSettings() {
+export function useUpdateUserPreference() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: { currencyPreference: string }) => {
-      const validated = api.user.updateSettings.input.parse(data);
       const res = await fetch(api.user.updateSettings.path, {
         method: api.user.updateSettings.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
-        credentials: "include",
+        body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error("Failed to update settings");
-      return api.user.updateSettings.responses[200].parse(await res.json());
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.user.get.path] });

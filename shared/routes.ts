@@ -93,6 +93,19 @@ export const api = {
       input: insertBudgetSchema,
       responses: { 200: z.custom<typeof budgets.$inferSelect>() }
     }
+  },
+  settings: {
+    wipe: {
+      method: "POST" as const,
+      path: "/api/settings/wipe" as const,
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    export: {
+      method: "GET" as const,
+      path: "/api/settings/export" as const,
+      input: z.object({ format: z.enum(["csv", "json"]) }),
+      responses: { 200: z.any() } // Returns a file
+    }
   }
 };
 

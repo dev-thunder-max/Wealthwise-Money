@@ -28,6 +28,8 @@ export interface IStorage {
   
   getBudgets(): Promise<(Budget & { categoryName?: string, categoryColor?: string })[]>;
   upsertBudget(budget: InsertBudget): Promise<Budget>;
+
+  wipeData(): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -139,6 +141,12 @@ export class DatabaseStorage implements IStorage {
       const [newBudget] = await db.insert(budgets).values(budget).returning();
       return newBudget;
     }
+  }
+
+  async wipeData(): Promise<void> {
+    await db.delete(transactions);
+    await db.delete(budgets);
+    await db.delete(accounts);
   }
 }
 
