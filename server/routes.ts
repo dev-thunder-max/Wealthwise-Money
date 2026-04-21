@@ -62,7 +62,7 @@ export async function registerRoutes(
     try {
       const input = api.auth.setup.input.parse(req.body);
       const user = await ensureUser();
-      if (user.passwordHash) {
+      if (user.passwordHash && user.username) {
         return res.status(400).json({ message: "Account already set up" });
       }
       const passwordHash = await hashSecret(input.password);
