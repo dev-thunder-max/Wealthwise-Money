@@ -8,11 +8,11 @@ import { categories, users } from "@shared/schema";
 import {
   setupSession,
   requireAuth,
-  hashPassword,
-  verifyPassword,
-  getStoredPasswordHash,
-  setStoredPasswordHash,
+  hashSecret,
+  verifySecret,
+  ensureUser,
 } from "./auth";
+import { eq } from "drizzle-orm";
 
 async function seedDatabase() {
   const existingUser = await storage.getUser();
@@ -49,22 +49,32 @@ export async function registerRoutes(
 
   // Auth routes (public)
   app.get(api.auth.status.path, async (req, res) => {
-    const hash = await getStoredPasswordHash();
+    const user = await storage.getUser();
+    const isSetup = !!(user?.passwordHash && user?.username);
     res.json({
-      isSetup: !!hash,
-      isAuthenticated: !!req.session?.isAuthenticated && !!hash,
+      isSetup,
+      isAuthenticated: !!req.session?.isAuthenticated && isSetup,
+      username: user?.username ?? null,
     });
   });
 
   app.post(api.auth.setup.path, async (req, res) => {
     try {
       const input = api.auth.setup.input.parse(req.body);
-      const existing = await getStoredPasswordHash();
-      if (existing) {
-        return res.status(400).json({ message: "Password is already set" });
+      const user = await ensureUser();
+      if (user.passwordHash) {
+        return res.status(400).json({ message: "Account already set up" });
       }
-      const hash = await hashPassword(input.password);
-      await setStoredPasswordHash(hash);
+      const passwordHash = await hashSecret(input.password);
+      const securityAnswerHash = await hashSecret(input.securityAnswer.trim().toLowerCase());
+      await db.update(users)
+        .set({
+          username: input.username.trim(),
+          passwordHash,
+          securityQuestion: input.securityQuestion.trim(),
+          securityAnswerHash,
+        })
+        .where(eq(users.id, user.id));
       req.session.isAuthenticated = true;
       res.json({ success: true });
     } catch (err) {
@@ -78,13 +88,16 @@ export async function registerRoutes(
   app.post(api.auth.login.path, async (req, res) => {
     try {
       const input = api.auth.login.input.parse(req.body);
-      const stored = await getStoredPasswordHash();
-      if (!stored) {
-        return res.status(400).json({ message: "Password not set yet" });
+      const user = await storage.getUser();
+      if (!user?.passwordHash || !user?.username) {
+        return res.status(400).json({ message: "Account not set up yet" });
       }
-      const ok = await verifyPassword(input.password, stored);
+      if (user.username.toLowerCase() !== input.username.trim().toLowerCase()) {
+        return res.status(401).json({ message: "Incorrect username or password" });
+      }
+      const ok = await verifySecret(input.password, user.passwordHash);
       if (!ok) {
-        return res.status(401).json({ message: "Incorrect password" });
+        return res.status(401).json({ message: "Incorrect username or password" });
       }
       req.session.isAuthenticated = true;
       res.json({ success: true });
@@ -98,8 +111,49 @@ export async function registerRoutes(
 
   app.post(api.auth.logout.path, (req, res) => {
     req.session.destroy(() => {
+      res.clearCookie("wealthwise.sid", { path: "/" });
       res.json({ success: true });
     });
+  });
+
+  app.post(api.auth.recoveryQuestion.path, async (req, res) => {
+    try {
+      const input = api.auth.recoveryQuestion.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.username || !user?.securityQuestion ||
+          user.username.toLowerCase() !== input.username.trim().toLowerCase()) {
+        return res.status(404).json({ message: "No account found for that username" });
+      }
+      res.json({ question: user.securityQuestion });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.auth.resetPassword.path, async (req, res) => {
+    try {
+      const input = api.auth.resetPassword.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.username || !user?.securityAnswerHash ||
+          user.username.toLowerCase() !== input.username.trim().toLowerCase()) {
+        return res.status(404).json({ message: "No account found for that username" });
+      }
+      const ok = await verifySecret(input.securityAnswer.trim().toLowerCase(), user.securityAnswerHash);
+      if (!ok) {
+        return res.status(401).json({ message: "Incorrect answer to your security question" });
+      }
+      const newHash = await hashSecret(input.newPassword);
+      await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   // Protect all subsequent /api routes

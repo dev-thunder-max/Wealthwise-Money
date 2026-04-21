@@ -13,24 +13,52 @@ export const api = {
       method: "GET" as const,
       path: "/api/auth/status" as const,
       responses: {
-        200: z.object({ isSetup: z.boolean(), isAuthenticated: z.boolean() })
+        200: z.object({
+          isSetup: z.boolean(),
+          isAuthenticated: z.boolean(),
+          username: z.string().nullable().optional(),
+        })
       }
     },
     setup: {
       method: "POST" as const,
       path: "/api/auth/setup" as const,
-      input: z.object({ password: z.string().min(4, "Password must be at least 4 characters") }),
+      input: z.object({
+        username: z.string().min(2, "Username must be at least 2 characters"),
+        password: z.string().min(4, "Password must be at least 4 characters"),
+        securityQuestion: z.string().min(3, "Security question is required"),
+        securityAnswer: z.string().min(1, "Security answer is required"),
+      }),
       responses: { 200: z.object({ success: z.boolean() }) }
     },
     login: {
       method: "POST" as const,
       path: "/api/auth/login" as const,
-      input: z.object({ password: z.string().min(1, "Password is required") }),
+      input: z.object({
+        username: z.string().min(1, "Username is required"),
+        password: z.string().min(1, "Password is required"),
+      }),
       responses: { 200: z.object({ success: z.boolean() }) }
     },
     logout: {
       method: "POST" as const,
       path: "/api/auth/logout" as const,
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    recoveryQuestion: {
+      method: "POST" as const,
+      path: "/api/auth/recovery-question" as const,
+      input: z.object({ username: z.string().min(1) }),
+      responses: { 200: z.object({ question: z.string() }) }
+    },
+    resetPassword: {
+      method: "POST" as const,
+      path: "/api/auth/reset-password" as const,
+      input: z.object({
+        username: z.string().min(1),
+        securityAnswer: z.string().min(1),
+        newPassword: z.string().min(4, "Password must be at least 4 characters"),
+      }),
       responses: { 200: z.object({ success: z.boolean() }) }
     }
   },

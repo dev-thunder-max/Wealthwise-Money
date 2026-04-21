@@ -8,7 +8,7 @@ export function useAuthStatus() {
     queryFn: async () => {
       const res = await fetch(api.auth.status.path, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch auth status");
-      return await res.json() as { isSetup: boolean; isAuthenticated: boolean };
+      return await res.json() as { isSetup: boolean; isAuthenticated: boolean; username: string | null };
     },
     staleTime: 0,
   });
@@ -17,12 +17,13 @@ export function useAuthStatus() {
 export function useSetupPassword() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (password: string) => {
-      const res = await apiRequest("POST", api.auth.setup.path, { password });
+    mutationFn: async (data: { username: string; password: string; securityQuestion: string; securityAnswer: string }) => {
+      const res = await apiRequest("POST", api.auth.setup.path, data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
+      await queryClient.refetchQueries({ queryKey: [api.auth.status.path] });
     },
   });
 }
@@ -30,12 +31,13 @@ export function useSetupPassword() {
 export function useLogin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (password: string) => {
-      const res = await apiRequest("POST", api.auth.login.path, { password });
+    mutationFn: async (data: { username: string; password: string }) => {
+      const res = await apiRequest("POST", api.auth.login.path, data);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
+      await queryClient.refetchQueries({ queryKey: [api.auth.status.path] });
     },
   });
 }
@@ -47,9 +49,27 @@ export function useLogout() {
       const res = await apiRequest("POST", api.auth.logout.path);
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.clear();
-      queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
+    onSuccess: async () => {
+      queryClient.removeQueries();
+      await queryClient.refetchQueries({ queryKey: [api.auth.status.path] });
+    },
+  });
+}
+
+export function useRecoveryQuestion() {
+  return useMutation({
+    mutationFn: async (username: string) => {
+      const res = await apiRequest("POST", api.auth.recoveryQuestion.path, { username });
+      return await res.json() as { question: string };
+    },
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (data: { username: string; securityAnswer: string; newPassword: string }) => {
+      const res = await apiRequest("POST", api.auth.resetPassword.path, data);
+      return res.json();
     },
   });
 }
