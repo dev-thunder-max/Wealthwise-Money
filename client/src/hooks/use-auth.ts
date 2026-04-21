@@ -49,9 +49,15 @@ export function useLogout() {
       const res = await apiRequest("POST", api.auth.logout.path);
       return res.json();
     },
-    onSuccess: async () => {
-      queryClient.removeQueries();
-      await queryClient.refetchQueries({ queryKey: [api.auth.status.path] });
+    onSuccess: () => {
+      queryClient.setQueryData([api.auth.status.path], {
+        isSetup: true,
+        isAuthenticated: false,
+        username: null,
+      });
+      queryClient.removeQueries({
+        predicate: (q) => q.queryKey[0] !== api.auth.status.path,
+      });
     },
   });
 }
