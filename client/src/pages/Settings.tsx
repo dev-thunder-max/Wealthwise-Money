@@ -7,6 +7,18 @@ import { api } from "@shared/routes";
 import { Trash2, Download, LogOut } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLogout } from "@/hooks/use-auth";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -24,14 +36,33 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const logoutMut = useLogout();
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [wipeOpen, setWipeOpen] = useState(false);
 
-  const handleWipe = async () => {
-    if (confirm("Are you sure? This will permanently delete all your accounts, transactions, and budgets.")) {
-      const res = await fetch(api.settings.wipe.path, { method: api.settings.wipe.method });
-      if (res.ok) {
-        toast({ title: "Data wiped successfully" });
-        queryClient.invalidateQueries();
-      }
+  const handleConfirmLogout = async () => {
+    try {
+      await logoutMut.mutateAsync();
+      toast({ title: "Signed out" });
+    } catch (err: any) {
+      toast({ title: "Sign out failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLogoutOpen(false);
+    }
+  };
+
+  const handleConfirmWipe = async () => {
+    try {
+      const res = await fetch(api.settings.wipe.path, {
+        method: api.settings.wipe.method,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to wipe data");
+      toast({ title: "Data wiped successfully" });
+      queryClient.invalidateQueries();
+    } catch (err: any) {
+      toast({ title: "Wipe failed", description: err.message, variant: "destructive" });
+    } finally {
+      setWipeOpen(false);
     }
   };
 
@@ -87,22 +118,66 @@ export default function Settings() {
           <div className="pt-6 border-t border-border/50">
              <p className="text-sm font-bold text-foreground mb-2">Security</p>
              <p className="text-sm text-muted-foreground mb-4">Sign out to lock your data. You'll need your password to get back in.</p>
-             <Button
-               onClick={() => logoutMut.mutate()}
-               variant="outline"
-               className="w-full"
-               data-testid="button-logout"
-             >
-               <LogOut className="w-4 h-4 mr-2" /> Sign Out
-             </Button>
+             <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+               <AlertDialogTrigger asChild>
+                 <Button
+                   type="button"
+                   variant="outline"
+                   className="w-full"
+                   data-testid="button-logout"
+                 >
+                   <LogOut className="w-4 h-4 mr-2" /> Sign Out
+                 </Button>
+               </AlertDialogTrigger>
+               <AlertDialogContent>
+                 <AlertDialogHeader>
+                   <AlertDialogTitle>Sign out of WealthWise?</AlertDialogTitle>
+                   <AlertDialogDescription>
+                     You'll need to enter your password to access your data again.
+                   </AlertDialogDescription>
+                 </AlertDialogHeader>
+                 <AlertDialogFooter>
+                   <AlertDialogCancel data-testid="button-cancel-logout">Cancel</AlertDialogCancel>
+                   <AlertDialogAction
+                     onClick={handleConfirmLogout}
+                     disabled={logoutMut.isPending}
+                     data-testid="button-confirm-logout"
+                   >
+                     {logoutMut.isPending ? "Signing out..." : "Sign Out"}
+                   </AlertDialogAction>
+                 </AlertDialogFooter>
+               </AlertDialogContent>
+             </AlertDialog>
           </div>
 
           <div className="pt-6 border-t border-border/50">
              <p className="text-sm font-bold text-destructive mb-2">Danger Zone</p>
              <p className="text-sm text-muted-foreground mb-4">Wiping data will clear everything and reset the app to its original state.</p>
-             <Button onClick={handleWipe} variant="destructive" className="w-full">
-               <Trash2 className="w-4 h-4 mr-2" /> Wipe All Data
-             </Button>
+             <AlertDialog open={wipeOpen} onOpenChange={setWipeOpen}>
+               <AlertDialogTrigger asChild>
+                 <Button type="button" variant="destructive" className="w-full" data-testid="button-wipe">
+                   <Trash2 className="w-4 h-4 mr-2" /> Wipe All Data
+                 </Button>
+               </AlertDialogTrigger>
+               <AlertDialogContent>
+                 <AlertDialogHeader>
+                   <AlertDialogTitle>Wipe all data?</AlertDialogTitle>
+                   <AlertDialogDescription>
+                     This permanently deletes all accounts, transactions, and budgets. This cannot be undone.
+                   </AlertDialogDescription>
+                 </AlertDialogHeader>
+                 <AlertDialogFooter>
+                   <AlertDialogCancel>Cancel</AlertDialogCancel>
+                   <AlertDialogAction
+                     onClick={handleConfirmWipe}
+                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                     data-testid="button-confirm-wipe"
+                   >
+                     Yes, Wipe Data
+                   </AlertDialogAction>
+                 </AlertDialogFooter>
+               </AlertDialogContent>
+             </AlertDialog>
           </div>
         </CardContent>
       </Card>
