@@ -12,6 +12,9 @@ import Transactions from "./pages/Transactions";
 import Accounts from "./pages/Accounts";
 import Budgets from "./pages/Budgets";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
+import { useAuthStatus } from "./hooks/use-auth";
+import { Loader2 } from "lucide-react";
 
 function Router() {
   return (
@@ -26,24 +29,48 @@ function Router() {
   );
 }
 
+function AuthenticatedApp() {
+  return (
+    <SidebarProvider>
+      <div className="flex h-screen w-full bg-background overflow-hidden">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-16 flex items-center px-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 lg:hidden">
+            <SidebarTrigger className="text-foreground hover:bg-secondary rounded-lg" />
+            <span className="ml-4 font-display font-bold text-lg">WealthWise</span>
+          </header>
+          <main className="flex-1 overflow-y-auto w-full relative">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AuthGate() {
+  const { data: status, isLoading } = useAuthStatus();
+
+  if (isLoading || !status) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!status.isAuthenticated) {
+    return <Login />;
+  }
+
+  return <AuthenticatedApp />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SidebarProvider>
-          <div className="flex h-screen w-full bg-background overflow-hidden">
-            <AppSidebar />
-            <div className="flex-1 flex flex-col min-w-0">
-              <header className="h-16 flex items-center px-4 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 lg:hidden">
-                <SidebarTrigger className="text-foreground hover:bg-secondary rounded-lg" />
-                <span className="ml-4 font-display font-bold text-lg">WealthWise</span>
-              </header>
-              <main className="flex-1 overflow-y-auto w-full relative">
-                <Router />
-              </main>
-            </div>
-          </div>
-        </SidebarProvider>
+        <AuthGate />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

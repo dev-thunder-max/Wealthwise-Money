@@ -5,7 +5,8 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  currencyPreference: text("currency_preference").default('USD').notNull()
+  currencyPreference: text("currency_preference").default('USD').notNull(),
+  passwordHash: text("password_hash")
 });
 
 export const accounts = pgTable("accounts", {

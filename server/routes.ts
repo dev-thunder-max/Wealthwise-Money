@@ -5,15 +5,14 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { db } from "./db";
 import { categories, users } from "@shared/schema";
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-  },
-});
+import {
+  setupSession,
+  requireAuth,
+  hashPassword,
+  verifyPassword,
+  getStoredPasswordHash,
+  setStoredPasswordHash,
+} from "./auth";
 
 async function seedDatabase() {
   const existingUser = await storage.getUser();
@@ -44,6 +43,67 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Seed initial data
   seedDatabase().catch(console.error);
+
+  // Setup session middleware
+  setupSession(app);
+
+  // Auth routes (public)
+  app.get(api.auth.status.path, async (req, res) => {
+    const hash = await getStoredPasswordHash();
+    res.json({
+      isSetup: !!hash,
+      isAuthenticated: !!req.session?.isAuthenticated && !!hash,
+    });
+  });
+
+  app.post(api.auth.setup.path, async (req, res) => {
+    try {
+      const input = api.auth.setup.input.parse(req.body);
+      const existing = await getStoredPasswordHash();
+      if (existing) {
+        return res.status(400).json({ message: "Password is already set" });
+      }
+      const hash = await hashPassword(input.password);
+      await setStoredPasswordHash(hash);
+      req.session.isAuthenticated = true;
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.auth.login.path, async (req, res) => {
+    try {
+      const input = api.auth.login.input.parse(req.body);
+      const stored = await getStoredPasswordHash();
+      if (!stored) {
+        return res.status(400).json({ message: "Password not set yet" });
+      }
+      const ok = await verifyPassword(input.password, stored);
+      if (!ok) {
+        return res.status(401).json({ message: "Incorrect password" });
+      }
+      req.session.isAuthenticated = true;
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post(api.auth.logout.path, (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  // Protect all subsequent /api routes
+  app.use("/api", requireAuth);
 
   app.get(api.user.get.path, async (req, res) => {
     const user = await storage.getUser();

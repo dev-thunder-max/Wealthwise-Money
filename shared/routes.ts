@@ -8,6 +8,32 @@ export const errorSchemas = {
 };
 
 export const api = {
+  auth: {
+    status: {
+      method: "GET" as const,
+      path: "/api/auth/status" as const,
+      responses: {
+        200: z.object({ isSetup: z.boolean(), isAuthenticated: z.boolean() })
+      }
+    },
+    setup: {
+      method: "POST" as const,
+      path: "/api/auth/setup" as const,
+      input: z.object({ password: z.string().min(4, "Password must be at least 4 characters") }),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    login: {
+      method: "POST" as const,
+      path: "/api/auth/login" as const,
+      input: z.object({ password: z.string().min(1, "Password is required") }),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    logout: {
+      method: "POST" as const,
+      path: "/api/auth/logout" as const,
+      responses: { 200: z.object({ success: z.boolean() }) }
+    }
+  },
   user: {
     get: {
       method: "GET" as const,
