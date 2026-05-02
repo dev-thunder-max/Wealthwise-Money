@@ -9,13 +9,14 @@ import {
   SidebarMenuItem,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { LayoutDashboard, ReceiptText, WalletCards, Target, PiggyBank, Settings as SettingsIcon } from "lucide-react";
+import { LayoutDashboard, ReceiptText, WalletCards, Target, PiggyBank, Settings as SettingsIcon, UserCircle } from "lucide-react";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Transactions", url: "/transactions", icon: ReceiptText },
   { title: "Accounts", url: "/accounts", icon: WalletCards },
   { title: "Budgets", url: "/budgets", icon: Target },
+  { title: "Profile", url: "/profile", icon: UserCircle },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
 

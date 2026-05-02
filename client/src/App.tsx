@@ -12,6 +12,7 @@ import Transactions from "./pages/Transactions";
 import Accounts from "./pages/Accounts";
 import Budgets from "./pages/Budgets";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import { useAuthStatus } from "./hooks/use-auth";
 import { Loader2 } from "lucide-react";
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/transactions" component={Transactions} />
       <Route path="/accounts" component={Accounts} />
       <Route path="/budgets" component={Budgets} />
+      <Route path="/profile" component={Profile} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

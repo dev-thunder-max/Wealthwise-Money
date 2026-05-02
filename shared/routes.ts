@@ -78,6 +78,34 @@ export const api = {
       responses: {
         200: z.object({ success: z.boolean() })
       }
+    },
+    changeUsername: {
+      method: "POST" as const,
+      path: "/api/user/change-username" as const,
+      input: z.object({
+        newUsername: z.string().min(2, "Username must be at least 2 characters"),
+        currentPassword: z.string().min(1, "Current password is required"),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    changePassword: {
+      method: "POST" as const,
+      path: "/api/user/change-password" as const,
+      input: z.object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        newPassword: z.string().min(4, "New password must be at least 4 characters"),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    changeSecurityQuestion: {
+      method: "POST" as const,
+      path: "/api/user/change-security-question" as const,
+      input: z.object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        securityQuestion: z.string().min(3, "Security question is required"),
+        securityAnswer: z.string().min(1, "Security answer is required"),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }) }
     }
   },
   accounts: {

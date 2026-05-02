@@ -327,6 +327,55 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.user.changeUsername.path, async (req, res) => {
+    try {
+      const input = api.user.changeUsername.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.passwordHash) return res.status(400).json({ message: "Account not set up" });
+      const ok = await verifySecret(input.currentPassword, user.passwordHash);
+      if (!ok) return res.status(401).json({ message: "Incorrect current password" });
+      await db.update(users).set({ username: input.newUsername.trim() }).where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post(api.user.changePassword.path, async (req, res) => {
+    try {
+      const input = api.user.changePassword.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.passwordHash) return res.status(400).json({ message: "Account not set up" });
+      const ok = await verifySecret(input.currentPassword, user.passwordHash);
+      if (!ok) return res.status(401).json({ message: "Incorrect current password" });
+      const newHash = await hashSecret(input.newPassword);
+      await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post(api.user.changeSecurityQuestion.path, async (req, res) => {
+    try {
+      const input = api.user.changeSecurityQuestion.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.passwordHash) return res.status(400).json({ message: "Account not set up" });
+      const ok = await verifySecret(input.currentPassword, user.passwordHash);
+      if (!ok) return res.status(401).json({ message: "Incorrect current password" });
+      const securityAnswerHash = await hashSecret(input.securityAnswer.trim().toLowerCase());
+      await db.update(users)
+        .set({ securityQuestion: input.securityQuestion.trim(), securityAnswerHash })
+        .where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
   app.post(api.settings.wipe.path, async (req, res) => {
     await storage.wipeData();
     res.json({ success: true });
