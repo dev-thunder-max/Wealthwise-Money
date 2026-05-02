@@ -106,6 +106,29 @@ export const api = {
         securityAnswer: z.string().min(1, "Security answer is required"),
       }),
       responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    updateEmail: {
+      method: "POST" as const,
+      path: "/api/user/update-email" as const,
+      input: z.object({
+        email: z.string().email("Please enter a valid email address"),
+        currentPassword: z.string().min(1, "Current password is required"),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    sendVerification: {
+      method: "POST" as const,
+      path: "/api/user/send-verification" as const,
+      input: z.object({}),
+      responses: { 200: z.object({ success: z.boolean() }) }
+    },
+    verifyEmail: {
+      method: "POST" as const,
+      path: "/api/user/verify-email" as const,
+      input: z.object({
+        code: z.string().length(6, "Code must be 6 digits"),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }) }
     }
   },
   accounts: {

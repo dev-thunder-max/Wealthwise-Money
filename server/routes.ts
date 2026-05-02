@@ -13,6 +13,7 @@ import {
   ensureUser,
 } from "./auth";
 import { eq } from "drizzle-orm";
+import { generateVerificationCode, getExpiryTime, isCodeExpired, sendVerificationEmail } from "./email";
 
 async function seedDatabase() {
   const existingUser = await storage.getUser();
@@ -351,6 +352,65 @@ export async function registerRoutes(
       if (!ok) return res.status(401).json({ message: "Incorrect current password" });
       const newHash = await hashSecret(input.newPassword);
       await db.update(users).set({ passwordHash: newHash }).where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post(api.user.updateEmail.path, async (req, res) => {
+    try {
+      const input = api.user.updateEmail.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user?.passwordHash) return res.status(400).json({ message: "Account not set up" });
+      const ok = await verifySecret(input.currentPassword, user.passwordHash);
+      if (!ok) return res.status(401).json({ message: "Incorrect current password" });
+      await db.update(users)
+        .set({ email: input.email.trim().toLowerCase(), emailVerified: false, emailVerificationCode: null, emailVerificationExpiry: null })
+        .where(eq(users.id, user.id));
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
+  });
+
+  app.post(api.user.sendVerification.path, async (req, res) => {
+    try {
+      const user = await storage.getUser();
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (user.emailVerified) return res.status(400).json({ message: "Email is already verified" });
+      const code = generateVerificationCode();
+      const expiry = getExpiryTime();
+      await db.update(users)
+        .set({ emailVerificationCode: code, emailVerificationExpiry: expiry })
+        .where(eq(users.id, user.id));
+      await sendVerificationEmail(user.email, code);
+      res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ message: err.message || "Failed to send verification email" });
+    }
+  });
+
+  app.post(api.user.verifyEmail.path, async (req, res) => {
+    try {
+      const input = api.user.verifyEmail.input.parse(req.body);
+      const user = await storage.getUser();
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (user.emailVerified) return res.status(400).json({ message: "Email is already verified" });
+      if (!user.emailVerificationCode || !user.emailVerificationExpiry) {
+        return res.status(400).json({ message: "No verification code sent. Please request a new one." });
+      }
+      if (isCodeExpired(user.emailVerificationExpiry)) {
+        return res.status(400).json({ message: "Verification code has expired. Please request a new one." });
+      }
+      if (user.emailVerificationCode !== input.code) {
+        return res.status(400).json({ message: "Incorrect verification code" });
+      }
+      await db.update(users)
+        .set({ emailVerified: true, emailVerificationCode: null, emailVerificationExpiry: null })
+        .where(eq(users.id, user.id));
       res.json({ success: true });
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });

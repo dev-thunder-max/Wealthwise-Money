@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { User, KeyRound, ShieldQuestion, Eye, EyeOff } from "lucide-react";
+import { User, KeyRound, ShieldQuestion, Eye, EyeOff, Mail, BadgeCheck, BadgeAlert } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { Badge } from "@/components/ui/badge";
 
 const SECURITY_QUESTIONS = [
   "What is your mother's maiden name?",
@@ -58,19 +59,22 @@ export default function Profile() {
   const [usernameForm, setUsernameForm] = useState({ newUsername: "", currentPassword: "" });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [secQForm, setSecQForm] = useState({ currentPassword: "", securityQuestion: "", securityAnswer: "" });
+  const [emailForm, setEmailForm] = useState({ email: "", currentPassword: "" });
+  const [verifyCode, setVerifyCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
+
+  const invalidateUser = () => queryClient.invalidateQueries({ queryKey: [api.user.get.path] });
 
   const changeUsernameMut = useMutation({
     mutationFn: (data: typeof usernameForm) =>
       apiRequest(api.user.changeUsername.method, api.user.changeUsername.path, data),
     onSuccess: () => {
       toast({ title: "Username updated successfully" });
-      queryClient.invalidateQueries({ queryKey: [api.user.get.path] });
+      invalidateUser();
       queryClient.invalidateQueries({ queryKey: [api.auth.status.path] });
       setUsernameForm({ newUsername: "", currentPassword: "" });
     },
-    onError: (err: any) => {
-      toast({ title: "Failed to update username", description: err.message, variant: "destructive" });
-    },
+    onError: (err: any) => toast({ title: "Failed to update username", description: err.message, variant: "destructive" }),
   });
 
   const changePasswordMut = useMutation({
@@ -80,9 +84,7 @@ export default function Profile() {
       toast({ title: "Password updated successfully" });
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
     },
-    onError: (err: any) => {
-      toast({ title: "Failed to update password", description: err.message, variant: "destructive" });
-    },
+    onError: (err: any) => toast({ title: "Failed to update password", description: err.message, variant: "destructive" }),
   });
 
   const changeSecQMut = useMutation({
@@ -90,12 +92,45 @@ export default function Profile() {
       apiRequest(api.user.changeSecurityQuestion.method, api.user.changeSecurityQuestion.path, data),
     onSuccess: () => {
       toast({ title: "Security question updated successfully" });
-      queryClient.invalidateQueries({ queryKey: [api.user.get.path] });
+      invalidateUser();
       setSecQForm({ currentPassword: "", securityQuestion: "", securityAnswer: "" });
     },
-    onError: (err: any) => {
-      toast({ title: "Failed to update security question", description: err.message, variant: "destructive" });
+    onError: (err: any) => toast({ title: "Failed to update security question", description: err.message, variant: "destructive" }),
+  });
+
+  const updateEmailMut = useMutation({
+    mutationFn: (data: typeof emailForm) =>
+      apiRequest(api.user.updateEmail.method, api.user.updateEmail.path, data),
+    onSuccess: () => {
+      toast({ title: "Email updated", description: "Now send a verification code to confirm it." });
+      invalidateUser();
+      setEmailForm({ email: "", currentPassword: "" });
+      setCodeSent(false);
+      setVerifyCode("");
     },
+    onError: (err: any) => toast({ title: "Failed to update email", description: err.message, variant: "destructive" }),
+  });
+
+  const sendVerificationMut = useMutation({
+    mutationFn: () => apiRequest(api.user.sendVerification.method, api.user.sendVerification.path, {}),
+    onSuccess: () => {
+      toast({ title: "Verification code sent", description: "Check your email inbox (and spam folder)." });
+      setCodeSent(true);
+      setVerifyCode("");
+    },
+    onError: (err: any) => toast({ title: "Failed to send code", description: err.message, variant: "destructive" }),
+  });
+
+  const verifyEmailMut = useMutation({
+    mutationFn: (data: { code: string }) =>
+      apiRequest(api.user.verifyEmail.method, api.user.verifyEmail.path, data),
+    onSuccess: () => {
+      toast({ title: "Email verified!", description: "Your email address is now confirmed." });
+      invalidateUser();
+      setCodeSent(false);
+      setVerifyCode("");
+    },
+    onError: (err: any) => toast({ title: "Verification failed", description: err.message, variant: "destructive" }),
   });
 
   const handleUsernameSubmit = (e: React.FormEvent) => {
@@ -121,6 +156,22 @@ export default function Profile() {
     changeSecQMut.mutate(secQForm);
   };
 
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailForm.email.trim()) return toast({ title: "Please enter an email address", variant: "destructive" });
+    if (!emailForm.currentPassword) return toast({ title: "Please enter your current password", variant: "destructive" });
+    updateEmailMut.mutate(emailForm);
+  };
+
+  const handleVerifySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verifyCode.length !== 6) return toast({ title: "Please enter the 6-digit code", variant: "destructive" });
+    verifyEmailMut.mutate({ code: verifyCode });
+  };
+
+  const emailVerified = user?.emailVerified;
+  const hasEmail = user?.email && user.email !== "user@example.com";
+
   return (
     <div className="p-6 md:p-8 space-y-8 animate-in fade-in duration-500 max-w-3xl mx-auto">
       <h1 className="text-3xl font-display font-bold text-foreground">Profile</h1>
@@ -139,6 +190,17 @@ export default function Profile() {
             <span className="font-medium" data-testid="text-username">{user?.username ?? authStatus?.username ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between py-2 border-b border-border/50">
+            <span className="text-sm text-muted-foreground">Email</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-sm" data-testid="text-email">{hasEmail ? user?.email : "Not set"}</span>
+              {hasEmail && (
+                emailVerified
+                  ? <Badge variant="secondary" className="gap-1 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800"><BadgeCheck className="h-3 w-3" />Verified</Badge>
+                  : <Badge variant="secondary" className="gap-1 text-amber-600 bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800"><BadgeAlert className="h-3 w-3" />Unverified</Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-between py-2 border-b border-border/50">
             <span className="text-sm text-muted-foreground">Security Question</span>
             <span className="font-medium text-right max-w-xs text-sm" data-testid="text-security-question">{user?.securityQuestion ?? "—"}</span>
           </div>
@@ -146,6 +208,101 @@ export default function Profile() {
             <span className="text-sm text-muted-foreground">Currency</span>
             <span className="font-medium" data-testid="text-currency">{user?.currencyPreference ?? "—"}</span>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email & Verification */}
+      <Card className="rounded-2xl border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Email Address
+          </CardTitle>
+          <CardDescription>
+            {emailVerified
+              ? "Your email is verified. You can update it below."
+              : hasEmail
+                ? "Your email is set but not yet verified. Send a code to confirm it."
+                : "Set your email address, then verify it with a code sent to your inbox."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Update email form */}
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">
+                {hasEmail ? "Update Email Address" : "Set Email Address"}
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder={hasEmail ? user?.email : "your@email.com"}
+                value={emailForm.email}
+                onChange={e => setEmailForm(f => ({ ...f, email: e.target.value }))}
+                data-testid="input-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email-password">Current Password</Label>
+              <PasswordInput
+                id="email-password"
+                value={emailForm.currentPassword}
+                onChange={v => setEmailForm(f => ({ ...f, currentPassword: v }))}
+                placeholder="Confirm with your password"
+                data-testid="input-email-password"
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={updateEmailMut.isPending} data-testid="button-update-email">
+              {updateEmailMut.isPending ? "Saving..." : hasEmail ? "Update Email" : "Set Email"}
+            </Button>
+          </form>
+
+          {/* Verification section */}
+          {hasEmail && !emailVerified && (
+            <div className="pt-4 border-t border-border/50 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                A 6-digit code will be sent to <strong>{user?.email}</strong>. It expires in 15 minutes.
+              </p>
+              {!codeSent ? (
+                <Button
+                  onClick={() => sendVerificationMut.mutate()}
+                  disabled={sendVerificationMut.isPending}
+                  data-testid="button-send-verification"
+                >
+                  {sendVerificationMut.isPending ? "Sending..." : "Send Verification Code"}
+                </Button>
+              ) : (
+                <form onSubmit={handleVerifySubmit} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="verify-code">Enter 6-digit Code</Label>
+                    <div className="flex gap-3">
+                      <Input
+                        id="verify-code"
+                        placeholder="123456"
+                        maxLength={6}
+                        value={verifyCode}
+                        onChange={e => setVerifyCode(e.target.value.replace(/\D/g, ""))}
+                        className="text-center text-xl tracking-widest font-mono w-40"
+                        data-testid="input-verify-code"
+                      />
+                      <Button type="submit" disabled={verifyEmailMut.isPending} data-testid="button-verify-email">
+                        {verifyEmailMut.isPending ? "Verifying..." : "Verify"}
+                      </Button>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => sendVerificationMut.mutate()}
+                    disabled={sendVerificationMut.isPending}
+                    className="text-sm text-primary hover:underline disabled:opacity-50"
+                    data-testid="button-resend-code"
+                  >
+                    {sendVerificationMut.isPending ? "Sending..." : "Resend code"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

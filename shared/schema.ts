@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -9,7 +9,10 @@ export const users = pgTable("users", {
   currencyPreference: text("currency_preference").default('USD').notNull(),
   passwordHash: text("password_hash"),
   securityQuestion: text("security_question"),
-  securityAnswerHash: text("security_answer_hash")
+  securityAnswerHash: text("security_answer_hash"),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  emailVerificationCode: text("email_verification_code"),
+  emailVerificationExpiry: text("email_verification_expiry"),
 });
 
 export const accounts = pgTable("accounts", {
